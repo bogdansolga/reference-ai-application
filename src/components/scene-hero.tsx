@@ -13,7 +13,7 @@ export function SceneHero({
   kicker,
   title,
   lede,
-  height = 340,
+  height = 260,
 }: {
   scene: SceneName;
   kicker: string;
@@ -75,7 +75,8 @@ export function SceneHero({
           background: "linear-gradient(90deg, #fff 0%, color-mix(in srgb, #fff 90%, transparent) 30%, transparent 58%)",
         }}
       />
-      <div className="relative z-10 h-full max-w-6xl mx-auto px-6 flex flex-col justify-center gap-3">
+      {/* text at the top, so the band can stay short; the scene and the wave fill the space below and right */}
+      <div className="relative z-10 h-full max-w-6xl mx-auto px-6 pt-8 flex flex-col justify-start gap-2.5">
         <div className="kicker">{kicker}</div>
         <h1 className="serif-title text-5xl md:text-6xl max-w-2xl">{title}</h1>
         {lede && <p className="text-[var(--muted)] text-lg max-w-xl leading-relaxed">{lede}</p>}

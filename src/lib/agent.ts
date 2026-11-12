@@ -344,3 +344,21 @@ export async function countTokens(text: string): Promise<number> {
   const data = await res.json();
   return data.count;
 }
+
+/**
+ * What the agent pages show about the agent itself: its prompt, tools and limits, plus the fixed part of every
+ * prompt (system prompt + tool definitions) counted by the live tokenizer; null when oMLX is down.
+ */
+export async function agentInfo() {
+  const fixedCost = await Promise.all([countTokens(SYSTEM_PROMPT), countTokens(JSON.stringify(toolDefinitions))])
+    .then(([system, tools]) => ({ system, tools }))
+    .catch(() => null);
+  return {
+    systemPrompt: SYSTEM_PROMPT,
+    tools: toolDefinitions,
+    toolKinds,
+    maxSteps: MAX_STEPS,
+    contextWindow: CONTEXT_WINDOW,
+    fixedCost,
+  };
+}

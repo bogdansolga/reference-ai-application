@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { SceneHero } from "@/components/scene-hero";
-import { SiteHeader } from "@/components/site-header";
+import { SectionHead } from "@/components/section-head";
 
 // ---------- System components diagram (deck style: glass cards, dashed links, numbered step pills) ----------
 
@@ -112,7 +111,7 @@ const INGESTION = [
 ];
 
 const QUERYING = [
-  { step: 5, title: "Ask a question", desc: "In the RAG chat at /chat." },
+  { step: 5, title: "Ask a question", desc: "In the Chat tab of this section." },
   { step: 6, title: "Embed the question", desc: "The same embedding model turns the question into a 1024-dim vector." },
   { step: 7, title: "Similarity search", desc: "The 5 closest slides by cosine distance, via the HNSW index." },
   { step: 8, title: "Augment the prompt", desc: "The retrieved slides go into the system prompt, each with its citation." },
@@ -149,16 +148,6 @@ const DATABASES = [
   { name: "Elasticsearch / OpenSearch", eg: "hybrid search", pros: "Text and vector search combined", cons: "More complex setup; heavier resources" },
 ];
 
-function SectionHead({ kicker, children, lede }: { kicker: string; children: React.ReactNode; lede?: string }) {
-  return (
-    <div className="space-y-2 mb-6">
-      <div className="kicker">{kicker}</div>
-      <h2 className="serif-title text-5xl">{children}</h2>
-      {lede && <p className="text-lg text-[var(--muted)] max-w-3xl leading-relaxed">{lede}</p>}
-    </div>
-  );
-}
-
 function Steps({ steps, tone }: { steps: { step: number; title: string; desc: string }[]; tone: "sage" | "blue" }) {
   return (
     <div className={`grid gap-4 ${steps.length > 4 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
@@ -181,20 +170,15 @@ function Steps({ steps, tone }: { steps: { step: number; title: string; desc: st
   );
 }
 
-export default function OverviewPage() {
+export default function RagOverviewPage() {
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <SiteHeader />
-      <SceneHero
-        scene="rag"
-        kicker="RAG · Architecture"
-        title={<>Retrieval-augmented <em>generation</em></>}
-        lede={<>How this app&apos;s RAG pipeline is built. <em>&quot;There are no solutions, there are only tradeoffs.&quot;</em></>}
-      />
-
-      <main className="max-w-6xl mx-auto px-6 py-14 space-y-20">
+    <>
+      <main className="max-w-6xl mx-auto px-6 py-12 space-y-20">
         <section>
-          <SectionHead kicker="Architecture" lede="Five components, two flows: ingestion fills the vector database ahead of time, querying reads it at question time.">
+          <SectionHead
+            kicker="Architecture"
+            lede={<>Five components, two flows: ingestion fills the vector database ahead of time, querying reads it at question time. <em>&quot;There are no solutions, there are only tradeoffs.&quot;</em></>}
+          >
             System <em>components</em>
           </SectionHead>
           <div className="deck-card p-6 md:p-8 overflow-x-auto">
@@ -270,14 +254,14 @@ export default function OverviewPage() {
 
         <footer className="border-t border-[var(--border)] pt-6 flex flex-wrap items-center gap-3">
           <span className="text-[var(--muted)] mr-2">See it working:</span>
-          <Link href="/chat" className="px-4 py-2 rounded-full bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90">
+          <Link href="/rag/chat" className="px-4 py-2 rounded-full bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90">
             Try the RAG chat
           </Link>
-          <Link href="/agent" className="px-4 py-2 rounded-full border border-[var(--accent-border)] text-[var(--blue)] text-sm font-semibold hover:bg-[var(--sky)]">
+          <Link href="/agent/overview" className="px-4 py-2 rounded-full border border-[var(--accent-border)] text-[var(--blue)] text-sm font-semibold hover:bg-[var(--sky)]">
             RAG as an agent tool
           </Link>
         </footer>
       </main>
-    </div>
+    </>
   );
 }

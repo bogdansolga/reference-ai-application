@@ -20,9 +20,13 @@ This file provides context for Claude Code when working on this project.
 
 ```
 src/app/page.tsx              → Homepage: RAG vs Agents, complementarity, levels of autonomy
-src/app/chat/page.tsx         → RAG chat page (renders <Chat />)
-src/app/overview/page.tsx     → RAG architecture visual overview
-src/app/agent/page.tsx        → Agent demo page (renders <AgentRuns />)
+src/app/rag/layout.tsx        → RAG section: header + hero + tabs (Chat | How it works), stays mounted across tabs
+src/app/rag/chat/page.tsx     → RAG chat (renders <Chat />; the conversation lives at module level, survives tab switches)
+src/app/rag/overview/page.tsx → RAG "How it works": system diagram, phases, considerations, DB choice
+src/app/agent/layout.tsx      → Agent section: header + hero + tabs (Demo | How it works)
+src/app/agent/demo/page.tsx   → agent demo (renders <AgentRuns />)
+src/app/agent/overview/page.tsx → agent "How it works": the loop, context window, prompt + tools, SDK version
+next.config.ts                → redirects: /rag → /rag/chat, /agent → /agent/demo, /chat and /overview (old) → /rag/*
 src/app/layout.tsx            → Root layout (fonts, metadata)
 src/instrumentation.ts        → server start: pre-loads the prompts
 src/app/globals.css           → Tailwind v4 + CSS vars + prose styles
@@ -44,7 +48,9 @@ src/lib/agent.ts              → runAgent(): hand-written tool loop, session hi
 src/lib/agent-tools.ts        → tool registry (name, kind read|write, JSON schema, execute)
 src/components/chat.tsx       → Client component: useChat, streaming, sources
 src/components/agent-runs.tsx → Client component: sessions, collapsible turns, live trace, context charts
-src/components/site-header.tsx → shared header / nav
+src/components/site-header.tsx → shared header / nav (Home · RAG · Agent)
+src/components/section-tabs.tsx → the tabs under a section's hero
+src/components/section-head.tsx → deck-style section heading (kicker, serif title, lede)
 src/components/scene-hero.tsx → animated deck-style hero band (client-only three.js, disposed on unmount)
 src/components/scenes/*       → kit.ts (ported deck scene kit), rag-scene.ts, agent-loop-scene.ts
 scripts/ingest.ts             → deck ingestion: hash-based skip / replace / prune (--soft for predev)

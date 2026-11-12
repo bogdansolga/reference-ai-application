@@ -113,11 +113,18 @@ function waveSurface(scene: THREE.Scene) {
   return mat;
 }
 
+/** Share of the band's height the scene fills, and the most of the content column's width it may take. */
+const FIT_HEIGHT = 0.8;
+const FIT_MAX_WIDTH = 0.4; // the title and lede take the left ~55%
+const COLUMN_PX = 1152; // the pages' max-w-6xl content column
+const GUTTER_PX = 24; // its px-6 padding
+
 /**
  * base() + dividerStage() + the topicScenes wrapper: camera drift, the group's entrance and gentle rocking,
- * self-lit glass. The group sits in the right part of the canvas, whatever its aspect.
+ * self-lit glass. Fitted on every resize: 80% of the band's height, vertically centred, right-aligned to the
+ * content column (so it lines up with the text above and below, and never runs into the title on the left).
  */
-export function runScene(canvas: HTMLCanvasElement, build: Build, { flat = false, scale = 0.95 } = {}) {
+export function runScene(canvas: HTMLCanvasElement, build: Build, { flat = false } = {}) {
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -143,15 +150,31 @@ export function runScene(canvas: HTMLCanvasElement, build: Build, { flat = false
     }
   });
 
+  // The scene's own extent, measured once at scale 1, drives the fit.
+  const box = new THREE.Box3().setFromObject(group);
+  const size = box.getSize(new THREE.Vector3());
+  const centre = box.getCenter(new THREE.Vector3());
+  let fit = 1;
+
   function resize() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
+    const visibleHeight = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * CAM.z; // world units at z = 0
+    const pxPerUnit = h / visibleHeight;
+    const column = Math.min(w, COLUMN_PX) - 2 * GUTTER_PX;
+    fit = Math.min((FIT_HEIGHT * visibleHeight) / size.y, (FIT_MAX_WIDTH * column) / pxPerUnit / size.x);
+
+    // The scene stays ON the camera's axis (x = 0): in a wide band, anything placed far off-axis is stretched
+    // sideways by the perspective (a sphere turns into an oval). Instead the image is shifted, like a
+    // shift lens: the projection centre is moved to where the scene should appear, right-aligned to the column.
+    group.position.set(-centre.x * fit, TARGET.y - centre.y * fit, 0);
+    const sceneX = w / 2 + column / 2 - (size.x * fit * pxPerUnit) / 2; // px from the canvas's left edge
+    const fullWidth = 2 * Math.max(sceneX, w - sceneX); // a virtual frame centred on the scene
+    camera.aspect = fullWidth / h;
+    camera.setViewOffset(fullWidth, h, fullWidth / 2 - sceneX, 0, w, h);
     camera.updateProjectionMatrix();
-    const halfWidth = Math.tan(THREE.MathUtils.degToRad(17.5)) * CAM.z * camera.aspect;
-    group.position.set(Math.min(halfWidth * 0.55, 6), 0.1, 0);
   }
 
   let t0 = 0;
@@ -169,7 +192,7 @@ export function runScene(canvas: HTMLCanvasElement, build: Build, { flat = false
         }
         camera.lookAt(TARGET);
         mat.uniforms.t.value = t;
-        group.scale.setScalar(scale * (0.86 + 0.14 * ease(t / 0.9)));
+        group.scale.setScalar(fit * (0.86 + 0.14 * ease(t / 0.9)));
         if (!flat) group.rotation.y = -0.35 + Math.sin(t * 0.17) * 0.14;
         update(t);
         renderer.render(scene, camera);

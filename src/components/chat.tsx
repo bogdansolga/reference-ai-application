@@ -1,10 +1,9 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
-import { useRef, useEffect, useState } from "react";
+import { Chat as ChatSession, useChat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Markdown from "react-markdown";
-import { SceneHero } from "@/components/scene-hero";
-import { SiteHeader } from "@/components/site-header";
 
 interface Source {
   label: string; // "10-rag-introduction · slide 5: Four parts of a RAG system"
@@ -17,6 +16,54 @@ interface SearchResult {
   metadata: { slide?: number; slideTitle?: string } | null;
 }
 
+// ---------- Conversation state, kept outside the component ----------
+// The /rag tabs swap the page under a shared layout, which unmounts <Chat />. Keeping the conversation and its
+// sources at module level lets it survive Chat → How it works → Chat for the rest of the browser session.
+
+const NO_SOURCES: Record<string, Source[]> = {};
+let sources = NO_SOURCES;
+const listeners = new Set<() => void>();
+const sourcesStore = {
+  subscribe(fn: () => void) {
+    listeners.add(fn);
+    return () => void listeners.delete(fn);
+  },
+  get: () => sources,
+  getServer: () => NO_SOURCES,
+  set(messageId: string, list: Source[]) {
+    sources = { ...sources, [messageId]: list };
+    listeners.forEach((fn) => fn());
+  },
+};
+
+let lastQuery = "";
+let ragChat: ChatSession<UIMessage> | null = null;
+
+/** The one RAG conversation; after each answer, the sources come from /api/search for the same question. */
+function getRagChat() {
+  ragChat ??= new ChatSession<UIMessage>({
+    onFinish: async ({ message }) => {
+      if (!lastQuery) return;
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(lastQuery)}`);
+        const data = await res.json();
+        sourcesStore.set(
+          message.id,
+          (data.results as SearchResult[]).map((r) => ({
+            label: r.metadata?.slide
+              ? `${r.filename.replace(/\.html$/, "")} · slide ${r.metadata.slide}: ${r.metadata.slideTitle}`
+              : r.filename,
+            similarity: parseFloat(r.similarity.toFixed(2)),
+          })),
+        );
+      } catch {
+        // the answer stands without its sources
+      }
+    },
+  });
+  return ragChat;
+}
+
 /** Extract text content from a UIMessage's parts array */
 function getMessageText(message: { parts: Array<{ type: string; text?: string }> }): string {
   return message.parts
@@ -27,60 +74,32 @@ function getMessageText(message: { parts: Array<{ type: string; text?: string }>
 
 export function Chat() {
   const [inputValue, setInputValue] = useState("");
-  const [sourcesMap, setSourcesMap] = useState<Record<string, Source[]>>({});
-  const lastQueryRef = useRef<string>("");
+  const sourcesMap = useSyncExternalStore(sourcesStore.subscribe, sourcesStore.get, sourcesStore.getServer);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, status, error } = useChat({
-    onFinish: async ({ message }) => {
-      const query = lastQueryRef.current;
-      if (!query) return;
-
-      try {
-        const res = await fetch(
-          `/api/search?q=${encodeURIComponent(query)}`,
-        );
-        const data = await res.json();
-        const sources: Source[] = (data.results as SearchResult[]).map((r) => ({
-          label: r.metadata?.slide
-            ? `${r.filename.replace(/\.html$/, "")} · slide ${r.metadata.slide}: ${r.metadata.slideTitle}`
-            : r.filename,
-          similarity: parseFloat(r.similarity.toFixed(2)),
-        }));
-        setSourcesMap((prev) => ({ ...prev, [message.id]: sources }));
-      } catch {
-        // silently ignore source fetch errors
-      }
-    },
-  });
+  const { messages, sendMessage, status, error } = useChat({ chat: getRagChat() });
 
   const isLoading = status !== "ready";
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (inputValue.trim() && !isLoading) {
-      lastQueryRef.current = inputValue;
+      lastQuery = inputValue;
       void sendMessage({ text: inputValue });
       setInputValue("");
     }
   };
 
+  // Follow new messages; the page itself scrolls, so stay put while the chat is empty (keeps the hero in view).
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length) messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-screen">
-      <SiteHeader />
-      <SceneHero
-        scene="rag"
-        kicker="RAG · Grounding"
-        title={<>Ask the <em>decks</em></>}
-        lede="Every answer is retrieved from the AI training decks, then generated with those slides as context."
-      />
-
+    // Inside the /rag layout (header, hero, tabs): the page scrolls, the input stays pinned at the bottom.
+    <div className="flex flex-col min-h-[calc(100vh-380px)]">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 px-6 py-6">
         {messages.length === 0 && (
           <p className="max-w-6xl mx-auto text-center pt-10 text-[var(--muted)]">
             Try: <em>What are the four parts of a RAG system?</em>
@@ -144,7 +163,7 @@ export function Chat() {
       </div>
 
       {/* Input area */}
-      <div className="px-6 py-4 border-t border-[var(--border)] bg-[var(--input)]">
+      <div className="sticky bottom-0 px-6 py-4 border-t border-[var(--border)] bg-[var(--input)]">
         <form onSubmit={handleSubmit} className="max-w-6xl mx-auto flex gap-2">
           <input
             value={inputValue}

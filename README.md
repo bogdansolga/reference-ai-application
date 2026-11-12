@@ -42,11 +42,10 @@ User Question
   → Display with source citations
 ```
 
-The app has four pages:
+The app has a homepage and two sections:
 - **/** — Homepage: RAG and Agents, how they complement each other, levels of autonomy
-- **/chat** — RAG chat over the training decks
-- **/agent** — Tool-using agent demo: live trace of model calls, prompts, tool calls and context usage
-- **/overview** — Visual RAG architecture overview with diagrams
+- **/rag/chat** and **/rag/overview** — RAG: chat over the training decks, and how the pipeline is built
+- **/agent/demo** and **/agent/overview** — the tool-using agent: live trace of model calls, prompts, tool calls and context usage, and how it works
 
 ## Documentation
 
@@ -65,9 +64,8 @@ The app has four pages:
 src/
 ├── app/
 │   ├── page.tsx              # Homepage
-│   ├── chat/page.tsx         # RAG chat
-│   ├── agent/page.tsx        # Agent demo
-│   ├── overview/page.tsx     # RAG architecture overview
+│   ├── rag/                  # layout (hero + tabs), chat/, overview/
+│   ├── agent/                # layout (hero + tabs), demo/, overview/
 │   └── api/
 │       ├── agent/route.ts    # Agent loop, streamed as SSE
 │       ├── chat/route.ts     # RAG chat endpoint

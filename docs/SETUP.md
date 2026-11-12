@@ -130,9 +130,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | URL | Description |
 |-----|-------------|
 | `/` | Homepage — RAG and Agents, how they complement each other, levels of autonomy |
-| `/chat` | RAG chat — ask questions about the training decks |
-| `/agent` | Tool-using agent demo — live trace of model calls, prompts, tool calls and context usage |
-| `/overview` | Visual RAG architecture overview with diagrams |
+| `/rag/chat` | RAG chat — ask questions about the training decks |
+| `/rag/overview` | How the RAG pipeline is built: system diagram, ingestion and querying phases |
+| `/agent/demo` | Tool-using agent demo — live trace of model calls, prompts, tool calls and context usage |
+| `/agent/overview` | How the agent works: the loop, the context window, its prompt and tools |
 
 ## Available Scripts
 

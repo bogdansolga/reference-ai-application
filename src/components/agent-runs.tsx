@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState, type SubmitEvent } from "react";
-import { SceneHero } from "@/components/scene-hero";
-import { SiteHeader } from "@/components/site-header";
 import Markdown from "react-markdown";
 
 // ---------- Types mirroring the SSE events from /api/agent ----------
@@ -261,14 +259,8 @@ async function readEvents(res: Response, onEvent: (ev: AgentEvent) => void) {
 
 // ---------- Page component ----------
 
-export function AgentRuns(props: {
-  systemPrompt: string;
-  tools: ToolDefinition[];
-  toolKinds: Record<string, ToolKind>;
-  maxSteps: number;
-  contextWindow: number;
-  fixedCost: { system: number; tools: number } | null;
-}) {
+/** The demo: sessions, the conversation's turns (each a live or replayed trace) and the input. */
+export function AgentRuns(props: { toolKinds: Record<string, ToolKind>; contextWindow: number }) {
   const [input, setInput] = useState("");
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -366,20 +358,7 @@ export function AgentRuns(props: {
   const examples = turns.length ? EXAMPLES_FOLLOW_UP : EXAMPLES_NEW;
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <SiteHeader />
-      <SceneHero
-        scene="agent"
-        kicker="AI Agents · Acting"
-        title={<>A tool-using <em>agent</em></>}
-        lede={`The model decides which tools to call; our code runs them and feeds the results back, up to ${props.maxSteps} model calls per turn. Follow-up questions continue the session.`}
-      />
-
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        <ContextPrimer contextWindow={props.contextWindow} fixedCost={props.fixedCost} toolCount={props.tools.length} />
-
-        <CapabilitiesPanel {...props} />
-
         {/* Session bar */}
         <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] pb-3">
           <label htmlFor="session" className="text-sm font-semibold">Session</label>
@@ -472,25 +451,21 @@ export function AgentRuns(props: {
             ))}
           </div>
         </form>
-
-        <SdkCallout />
       </main>
-    </div>
   );
 }
 
 // ---------- Context window: primer, session chart, per-turn panel, per-call bar ----------
 
-function ContextPrimer(props: {
+export function ContextPrimer(props: {
   contextWindow: number;
   fixedCost: { system: number; tools: number } | null;
   toolCount: number;
 }) {
   const fixed = props.fixedCost ? props.fixedCost.system + props.fixedCost.tools : null;
   return (
-    <section className="border-2 border-[var(--accent-border)] bg-[var(--accent)] rounded-xl p-5">
-      <h2 className="text-lg font-semibold mb-2">Watch the context window</h2>
-      <div className="grid md:grid-cols-4 gap-4 text-sm">
+    <section className="deck-card hi p-6">
+      <div className="grid md:grid-cols-4 gap-5 text-sm">
         <div>
           <p className="text-3xl font-bold text-[var(--primary)]">{fmt(props.contextWindow)}</p>
           <p className="text-[var(--muted)]">
@@ -771,10 +746,15 @@ function HistoryNote({ history }: { history: HistoryInfo }) {
 
 // ---------- Turn card and steps ----------
 
-function CapabilitiesPanel(props: { systemPrompt: string; tools: ToolDefinition[]; toolKinds: Record<string, ToolKind> }) {
+export function CapabilitiesPanel(props: {
+  systemPrompt: string;
+  tools: ToolDefinition[];
+  toolKinds: Record<string, ToolKind>;
+  open?: boolean;
+}) {
   return (
-    <details className="border border-[var(--border)] rounded-xl bg-[var(--card)]">
-      <summary className="cursor-pointer px-4 py-3 font-semibold">
+    <details open={props.open} className="deck-card">
+      <summary className="cursor-pointer px-5 py-4 font-semibold">
         What the agent can do{" "}
         <span className="font-normal text-sm text-[var(--muted)]">
           (system prompt + {props.tools.length} tools, sent with every model call)
@@ -1098,9 +1078,9 @@ function Truncated({ text, limit = 500 }: { text: string; limit?: number }) {
   );
 }
 
-function SdkCallout() {
+export function SdkCallout() {
   return (
-    <aside className="border border-[var(--accent-border)] bg-[var(--accent)] rounded-xl p-4">
+    <aside className="deck-card p-5">
       <p className="font-semibold mb-1">In production</p>
       <p className="text-sm text-[var(--muted)] mb-2">
         This page runs the loop by hand so you can see every step. With the Vercel AI SDK the same agent is a few lines;

@@ -114,14 +114,14 @@ export default function Home() {
         <section className="grid md:grid-cols-2 gap-6">
           <PatternCard
             kicker="Pattern 1 · Grounding"
-            title={<>Retrieval-augmented <em>generation</em></>}
+            title={<>Retrieval Augmented <em>Generation</em></>}
             what="Retrieve the passages relevant to a question, add them to the prompt, and generate an answer grounded in them, with citations."
             flow={["question", "embed", "vector search", "prompt + context", "answer"]}
             flowNote="The path is fixed by code: every question is retrieved for, exactly once."
             when="questions over your own documents: private, current, attributable knowledge."
             links={[
-              { href: "/chat", label: "Try the RAG chat" },
-              { href: "/overview", label: "How it is built" },
+              { href: "/rag/chat", label: "Try the RAG chat" },
+              { href: "/rag/overview", label: "How it works" },
             ]}
           />
           <PatternCard
@@ -132,7 +132,10 @@ export default function Home() {
             flow={["request", "model", "tool calls", "results", "model", "…", "answer"]}
             flowNote="The path is chosen by the model, step by step (up to 5 model calls here)."
             when="multi-step tasks: look things up, calculate, read and write data."
-            links={[{ href: "/agent", label: "Watch the agent work" }]}
+            links={[
+              { href: "/agent/demo", label: "Watch the agent work" },
+              { href: "/agent/overview", label: "How it works" },
+            ]}
           />
         </section>
 

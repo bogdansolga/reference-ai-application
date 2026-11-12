@@ -5,12 +5,11 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/", label: "Home" },
-  { href: "/chat", label: "RAG Chat" },
-  { href: "/overview", label: "RAG Overview" },
+  { href: "/rag", label: "RAG" },
   { href: "/agent", label: "Agent" },
 ];
 
-/** The shared header: the brand and the four pages, the current one highlighted. */
+/** The shared header: the brand and the two sections (RAG, Agent), the current one highlighted. */
 export function SiteHeader() {
   const path = usePathname();
   return (
