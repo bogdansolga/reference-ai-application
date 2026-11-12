@@ -26,7 +26,7 @@ The app now showcases two AI patterns, RAG and AI Agents, so it moves from "refe
 
 ## 1. Rename
 
-- `reference-rag-application` → `reference-ai-application` in `package.json`, `bun.lock`, `.serena/project.yml`, `README.md`, `docs/SETUP.md`, `CLAUDE.md`, `docs/superpowers/specs/*` and `docs/handoffs/*`.
+- `reference-ai-application` → `reference-ai-application` in `package.json`, `bun.lock`, `.serena/project.yml`, `README.md`, `docs/SETUP.md`, `CLAUDE.md`, `docs/superpowers/specs/*` and `docs/handoffs/*`.
 - **Exception:** the Claude memory path (`~/.claude/projects/-Users-…-reference-rag-application/…`) stays literal, because it is the real path until the folder is renamed.
 - UI brand "RAG Training Showcase" → **"Reference AI"** (`layout.tsx` metadata, header, docs). Metadata description: "RAG and AI Agents, side by side, running locally".
 - Not changed: `rag_training` in `scripts/setup-db.sh` and `.env.local.example`, and the git remote.
@@ -221,3 +221,14 @@ The RAG and Agent pages each open with a **hero band** that has the same animate
      - The animation stops when the band scrolls out of view (check the rAF activity in DevTools).
      - The console has no WebGL errors when moving between pages, so the renderers are disposed.
 9. `grep -ri "reference-rag"` finds only the Claude memory path references.
+
+## 9. Additions during implementation (user requests)
+
+- **Logging:** `src/lib/core/utils/logger.ts` is copied from the sibling `finances-manager` (`Logger`: colored, timestamped, `DEBUG_LEVEL`). It replaces every `console.*` in `src/` and `scripts/`, and is always imported via `@/lib/core/utils/logger`.
+- **Prompts as Markdown:** every hard-coded prompt lives in `src/prompts/*.md`:
+  - `agent-system`, `agent-summary`, `agent-summary-input`, `agent-history-summary`
+  - `chat-system`, `chat-context`, `chat-no-context`
+
+  `src/lib/prompts.ts` reads them once per server process, at module load, never per request. `src/instrumentation.ts` pre-loads them at server start, so a missing file fails at boot. `{{placeholders}}` are filled by `fill()`, which throws on a missing value.
+- **Agent prompt:** `search_documents` is mandatory for course topics, and the model cites only the `source` values it received. Before this change the 4B model answered from memory and invented a slide citation by copying the prompt's example.
+- **Slide extraction:** figure SVGs close camelCase tags in lowercase (e.g. `</radialgradient>`), which derailed the HTML parser. SVGs are therefore flattened before parsing. Icons are dropped, and a figure becomes one line, `Figure: <aria-label> — <labels>`, so figure slides are searchable.

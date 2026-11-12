@@ -1,12 +1,12 @@
 # Setup Guide
 
-Step-by-step guide for setting up and running the RAG Training Showcase application.
+Step-by-step guide for setting up and running the Reference AI application.
 
 ## Prerequisites
 
 - **Bun** (v1.1+) — [Install Bun](https://bun.sh/)
 - **PostgreSQL** (v15+) with the [pgvector](https://github.com/pgvector/pgvector) extension installed
-- **OpenAI API key** — [Get one here](https://platform.openai.com/api-keys)
+- **oMLX** (Apple Silicon) — local OpenAI-compatible server for chat + embeddings, see below
 
 ## 1. Install Dependencies
 
@@ -24,9 +24,55 @@ Edit `.env.local` with your settings:
 
 ```bash
 DATABASE_URL=postgresql://your_user@localhost:5432/rag_training
-OPENAI_API_KEY=sk-proj-your-key-here
-CHAT_MODEL=gpt-5.4-nano           # optional, this is the default
-EMBEDDING_MODEL=text-embedding-3-small  # optional, this is the default
+EMBEDDING_BASE_URL=http://localhost:8000/v1  # local oMLX server (default)
+EMBEDDING_API_KEY=sk-omlx-...      # from ~/.omlx/settings.json → auth.api_key
+EMBEDDING_MODEL=bge-m3             # optional, this is the default
+EMBEDDING_DIMENSIONS=1024          # optional, must match the model
+CHAT_MODEL=Qwen3-4B-Instruct-2507-4bit  # optional, served by the same oMLX server/key
+```
+
+### Local models with oMLX (BAAI/bge-m3 + Qwen3-4B)
+
+Embeddings run locally on Apple Silicon via [oMLX](https://github.com/jundot/omlx), which exposes an OpenAI-compatible `/v1/embeddings` endpoint on port 8000.
+
+1. Install oMLX (`.dmg` from the GitHub releases → Applications) and launch it once; the server auto-starts and creates `~/.omlx/`.
+2. Download [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) into the oMLX model directory:
+
+   ```bash
+   cd ~/.omlx/models
+   uvx --from huggingface_hub hf download BAAI/bge-m3 --local-dir bge-m3 \
+     --include config.json pytorch_model.bin "tokenizer*" special_tokens_map.json \
+       sentencepiece.bpe.model modules.json "1_Pooling/*" "*sentence*.json"
+   ```
+
+3. oMLX embedding models need safetensors, but the official repo only ships `pytorch_model.bin`. Convert it (lossless, fp32):
+
+   ```bash
+   uv run --no-project --with torch --with safetensors --with numpy python -c '
+   import torch; from safetensors.torch import save_file
+   d = "'$HOME'/.omlx/models/bge-m3"
+   sd = torch.load(f"{d}/pytorch_model.bin", map_location="cpu", weights_only=True)
+   save_file({k: v.contiguous() for k, v in sd.items()}, f"{d}/model.safetensors", metadata={"format": "pt"})'
+   rm ~/.omlx/models/bge-m3/pytorch_model.bin
+   ```
+
+4. Restart and verify:
+
+   ```bash
+   ~/.omlx/bin/omlx restart
+   curl -s localhost:8000/v1/embeddings -H "Authorization: Bearer $EMBEDDING_API_KEY" \
+     -H 'Content-Type: application/json' -d '{"model":"bge-m3","input":"hello"}' | head -c 200
+   ```
+
+Download the chat model too (MLX format, loads as-is):
+
+```bash
+cd ~/.omlx/models
+uvx --from huggingface_hub hf download mlx-community/Qwen3-4B-Instruct-2507-4bit --local-dir Qwen3-4B-Instruct-2507-4bit
+~/.omlx/bin/omlx restart
+```
+
+bge-m3 returns 1024-dim, L2-normalized vectors (CLS pooling) and supports 100+ languages and inputs up to 8192 tokens.
 ```
 
 ## 3. Set Up the Database
@@ -47,31 +93,29 @@ bun db:setup
 bun db:embeddings-setup
 ```
 
-## 4. Prepare Training Documents
+## 4. Point to the Training Decks
 
-Copy PDF files into the `data/` directory:
+The knowledge base is the "AI Introduction & Integration" HTML decks (context engineering, AI agents, vector databases, RAG). Set their folder in `.env.local`:
 
 ```bash
-mkdir -p data
-cp /path/to/your/pdfs/*.pdf data/
+DECKS_DIR=/path/to/oman-lng-ai-acceleration-training/decks/html/ai-intro-integ
 ```
 
-This project was designed for the "AI Introduction & Integration" training course materials, but any PDF documents will work.
+The deck list is `DECK_FILES` in `src/lib/decks.ts`.
 
-## 5. Ingest Documents
+## 5. Index the Decks
 
 ```bash
 bun ingest
 ```
 
 This will:
-- Read each PDF from `data/`
-- Extract text content
-- Split into ~2000 character chunks with ~200 character overlap
-- Generate embeddings via OpenAI `text-embedding-3-small`
-- Store everything in PostgreSQL with pgvector
+- Read each deck from `DECKS_DIR` and extract one chunk per slide (title, text, card details, figure labels)
+- Skip a deck whose content hash is unchanged, so only refined decks are re-embedded
+- Embed changed decks via BAAI/bge-m3 on the local oMLX server and replace their chunks in one transaction
+- Remove documents that are no longer in the deck list
 
-You'll see progress output for each document.
+`bun dev` runs this automatically first (`predev`, in soft mode: if oMLX, the DB or the decks are unavailable it warns and starts anyway).
 
 ## 6. Start the Application
 
@@ -85,14 +129,16 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | URL | Description |
 |-----|-------------|
-| `/` | Chat interface — ask questions about the ingested documents |
+| `/` | Homepage — RAG and Agents, how they complement each other, levels of autonomy |
+| `/chat` | RAG chat — ask questions about the training decks |
+| `/agent` | Tool-using agent demo — live trace of model calls, prompts, tool calls and context usage |
 | `/overview` | Visual RAG architecture overview with diagrams |
 
 ## Available Scripts
 
 | Command | Description |
 |---------|-------------|
-| `bun dev` | Start dev server with Turbopack |
+| `bun dev` | Re-index changed decks, then start the dev server with Turbopack |
 | `bun run build` | Production build |
 | `bun start` | Start production server |
 | `bun db:setup` | Create database + run Drizzle migrations |
@@ -100,7 +146,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | `bun db:generate` | Generate Drizzle migrations from schema changes |
 | `bun db:migrate` | Run pending Drizzle migrations |
 | `bun db:studio` | Open Drizzle Studio (visual DB editor) |
-| `bun ingest` | Ingest PDFs from `data/` directory |
+| `bun ingest` | Index the training decks (skips unchanged ones) |
 | `bun bootstrap` | Run all setup steps in order |
 
 ## Troubleshooting
@@ -115,7 +161,7 @@ brew install pgvector
 Next.js will automatically use the next available port. Check the terminal output for the actual URL.
 
 ### Embedding errors
-Verify your `OPENAI_API_KEY` is valid and has access to the embeddings API. The default model `text-embedding-3-small` requires a standard OpenAI API key.
+Make sure oMLX is running (`curl localhost:8000/health`), `bge-m3` appears in `/v1/models`, and `EMBEDDING_API_KEY` matches `auth.api_key` in `~/.omlx/settings.json`. If you switch embedding models, re-create the `embedding` column with the new `EMBEDDING_DIMENSIONS` and re-ingest.
 
 ### Empty responses from chat
-Make sure you've run `bun ingest` after placing PDFs in `data/`. The chat uses vector search to find relevant context — without ingested documents, there's nothing to retrieve.
+Make sure `DECKS_DIR` points to the decks and `bun ingest` has run. The chat uses vector search to find relevant context — without ingested documents, there's nothing to retrieve.

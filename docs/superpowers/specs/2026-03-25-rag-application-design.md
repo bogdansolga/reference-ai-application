@@ -52,7 +52,7 @@ User question
 ## Project Structure
 
 ```
-reference-rag-application/
+reference-ai-application/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx                # Chat UI (single page)

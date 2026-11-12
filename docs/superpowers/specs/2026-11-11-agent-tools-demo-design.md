@@ -1,7 +1,7 @@
 # Agent Tools Demo — Design
 
 **Date:** 2026-11-11
-**Status:** Approved in brainstorming, pending spec review
+**Status:** Implemented (phase A and phase C)
 
 ## Goal
 
@@ -13,14 +13,19 @@ It runs fully locally on oMLX: Qwen3-4B-Instruct-2507-4bit generates and calls t
 
 **Phase A (this spec):** agentic RAG with three read-only tools, run history in browser memory.
 
-**Phase C (later, separate spec):**
+**Phase C (implemented):**
 - `save_note` / `list_notes` tools (a write tool and a read tool, with a `notes` table)
-- persist runs to the DB (a `runs` table) so history survives a refresh
+- persist runs to the DB (an `agent_runs` table storing each run's event list) so history survives a refresh; "Clear history" deletes them
+- a "Watch the context window" primer and a per-run context panel (growth chart, peak vs window, total tokens processed, fixed cost per call, time to first token)
 
 The tool registry and the event model are designed so phase C only adds entries and storage, with no restructuring.
 
+**Phase D (implemented): sessions**
+- `agent_sessions` table; each turn is an `agent_runs` row with `session_id`, `answer`, `summary`
+- earlier turns are re-sent as request + final answer (no tool traffic); a summary call after each answer produces a one-sentence summary, which replaces the turn in later context only when it is shorter (context compaction, shown with tokens saved)
+- UI: session picker / new / delete, turns collapsed to *You* / *Agent (summary)* lines, a session-level chart of what each turn starts with, a per-turn "earlier turns re-sent" breakdown and a summary-call step
+
 **Out of scope:**
-- multi-turn agent conversations (each run is one independent request)
 - token-level streaming of the final answer
 - authentication
 
