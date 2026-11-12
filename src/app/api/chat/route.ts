@@ -1,9 +1,12 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText } from "ai";
 import { embedQuery } from "@/lib/embeddings";
+import { chatModel, llmApiKey, llmBaseURL } from "@/lib/llm-config";
+import { fill, prompts } from "@/lib/prompts";
 import { formatContext, searchSimilar } from "@/lib/retrieval";
 
-const chatModel = process.env.CHAT_MODEL || "gpt-5.4-nano";
+// Chat runs on the same local oMLX server as embeddings (OpenAI-compatible API).
+const chatProvider = createOpenAI({ baseURL: llmBaseURL, apiKey: llmApiKey });
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -37,11 +40,9 @@ export async function POST(req: Request) {
 
   // 3. Build system prompt with retrieved context
   const context = formatContext(results);
-  const systemPrompt = `You are a helpful AI assistant for a training course on AI, Machine Learning, and RAG (Retrieval Augmented Generation).
-
-Answer questions based on the following context from the training materials. If the context doesn't contain relevant information, say so honestly rather than making up an answer.
-
-${context ? `## Retrieved Context\n\n${context}` : "No relevant context found in the training materials."}`;
+  const systemPrompt = fill(prompts.chatSystem, {
+    context: context ? fill(prompts.chatContext, { sources: context }) : prompts.chatNoContext,
+  });
 
   // 4. Prepare source citations header
   const sources = results.map((r) => ({
@@ -52,7 +53,7 @@ ${context ? `## Retrieved Context\n\n${context}` : "No relevant context found in
 
   // 5. Stream LLM response
   const result = streamText({
-    model: openai(chatModel),
+    model: chatProvider.chat(chatModel), // /v1/chat/completions (oMLX has no Responses API)
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
   });

@@ -41,14 +41,17 @@ export async function searchSimilar(
   }));
 }
 
+/** "Deck title, slide n: Slide title" for deck chunks; the filename otherwise. */
+export function citation(r: Pick<RetrievalResult, "filename" | "metadata">): string {
+  const m = r.metadata ?? {};
+  return m.slide ? `${m.deckTitle ?? r.filename}, slide ${m.slide}: ${m.slideTitle}` : r.filename;
+}
+
 /**
  * Format retrieval results into context string for LLM prompt.
  */
 export function formatContext(results: RetrievalResult[]): string {
   return results
-    .map(
-      (r, i) =>
-        `[Source ${i + 1}: ${r.filename}, chunk ${r.chunkIndex} (similarity: ${r.similarity.toFixed(2)})]:\n${r.content}`,
-    )
+    .map((r, i) => `[Source ${i + 1}: ${citation(r)} (similarity: ${r.similarity.toFixed(2)})]:\n${r.content}`)
     .join("\n\n");
 }
