@@ -100,6 +100,35 @@ All copy is written in the app. It is not pulled from the decks.
 - **Unchanged:** the agent's semantic colors (amber read tools, red write tools, pink earlier turns, slate summary, grey dashed errors) and the context-segment palette.
 - **Hard-coded colors:** any hard-coded indigo (`#4f46e5`) in `chat.tsx`, `overview/page.tsx` or `agent-runs.tsx` is replaced by `var(--primary)`.
 
+## 4b. Animated hero scenes (the decks' signature)
+
+The RAG and Agent pages each open with a **hero band** that has the same animated 3D scene as the matching deck's title slide.
+
+- **Source:** the deck kit (`decks/html/kit/elegant-3d.js`, `elegant-dividers.js`, `elegant-topics.js`, three.js 0.160).
+  - Ported (copied and typed), not loaded from the decks folder. The decks are not integrated into the app, and the kit imports three.js from a CDN.
+  - The file header records the source paths, so a later kit refinement can be re-ported by hand.
+- **Scenes:**
+  - **RAG** = the kit's `rag` scene (the RAG deck's `SCENE`): stacked documents → a database → a model core with a rotating wire shell. Dots travel along dashed links: documents go to the store, retrieved context goes to the model, and the question drops into the model from above.
+  - **Agent** = the kit's `loop` scene (the Agents deck's `SCENE`): a dark terminal block inside a dashed ring with three discs (analyse, plan, execute), and a dot circling the loop.
+  - Both are drawn over the kit's **waving sky→sage→blue surface** (shader). The group rocks gently and the camera drifts slowly, as in the decks.
+- **Where:**
+  - `/chat` and `/overview` (the RAG pages): RAG scene.
+  - `/agent`: loop scene.
+  - The band is about 260px tall on `/chat` (the chat keeps most of the screen), and about 340px on `/overview` and `/agent`.
+  - Layout as on a deck title slide: the canvas fills the band and the scene sits in the right half. The left side holds the kicker, a serif title with an italic blue word, and a one-line lede, over the deck's white-to-transparent fade.
+- **Files:**
+  - `src/components/scenes/kit.ts`: `base`, `waveSurface`, `dividerStage`, `glassMat`, `wireMat`, `glassBox`, `dashedLine`, `dot`, `arc`, `database`, `ease`, and the scene helpers (`place`, `ball`, `box`, `disc`, `stream`, `link`, `tint`). Colors are read from the app's CSS tokens (`--ink`, `--blue`, `--sky`, `--sage`, `--sage-deep`, `--sage-pill`, `--ochre`, `--line`). `--sage-pill #ddf0e8` and `--ochre #b4813a` are added to `globals.css`.
+  - `src/components/scenes/rag-scene.ts` and `src/components/scenes/agent-loop-scene.ts`: one `build(group)` each, ported from `SCENES.rag` and `SCENES.loop`.
+  - `src/components/scene-hero.tsx`: a client component, `<SceneHero scene="rag" | "agent" kicker title lede height />`.
+    - It loads three.js and the scene only in the browser, through a dynamic `import()` inside `useEffect`. It is never server-rendered.
+    - Starts the animation when the band is visible and stops it when it scrolls out of view (`IntersectionObserver`; this replaces the kit's `bindToSlide`).
+    - On unmount it disposes of the renderer, geometries and materials.
+- **Behaviour:**
+  - `prefers-reduced-motion`: render one still frame (t = 2.5 s), as the kit does.
+  - If WebGL is unavailable or three.js fails to load, the band keeps its text over a static sky→blue gradient, with no error.
+  - Resizes with the band (`ResizeObserver`), capped at a pixel ratio of 2.
+- **Dependency:** `three@0.160.0`, pinned to the kit's version, plus `@types/three` (dev).
+
 ## 5. Decks as the RAG knowledge base
 
 ### Sources and configuration
@@ -160,6 +189,7 @@ All copy is written in the app. It is not pulled from the decks.
 |---|---|---|
 | `src/app/chat/page.tsx` | `src/app/page.tsx` (homepage), `src/app/layout.tsx` (fonts, metadata), `src/app/globals.css` | `Simple RAG overview.pdf` (root), `data/Simple RAG overview.pdf` |
 | `src/components/site-header.tsx` | `src/components/chat.tsx`, `src/components/agent-runs.tsx`, `src/app/overview/page.tsx` (header, colors) | `pdf-parse` dependency |
+| `src/components/scene-hero.tsx`, `src/components/scenes/{kit,rag-scene,agent-loop-scene}.ts` | `three` + `@types/three` dependencies | |
 | `src/lib/decks.ts` | `scripts/ingest.ts`, `src/lib/schema.ts` + new `drizzle/0003_*.sql` | |
 | | `src/lib/retrieval.ts`, `src/lib/agent-tools.ts`, `src/lib/agent.ts` (citations) | |
 | | `package.json`, `bun.lock`, `.serena/project.yml`, `.env.local.example`, docs (README, SETUP, CLAUDE.md, specs, handoff) | |
@@ -184,4 +214,10 @@ All copy is written in the app. It is not pulled from the decks.
    - `/`: hero, pattern cards, complementarity section, autonomy ladder with the L1/L2 markers.
    - `/chat`, `/agent` and `/overview` use the new fonts and colors and the shared header, with the agent's tool colors unchanged.
    - Narrow-width layout.
+   - Hero scenes:
+     - `/chat` and `/overview` animate the RAG scene; `/agent` animates the loop scene, over the waving surface.
+     - The text stays readable over the fade.
+     - With reduced motion emulated, the scenes show one still frame.
+     - The animation stops when the band scrolls out of view (check the rAF activity in DevTools).
+     - The console has no WebGL errors when moving between pages, so the renderers are disposed.
 9. `grep -ri "reference-rag"` finds only the Claude memory path references.
