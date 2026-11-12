@@ -1,133 +1,107 @@
 /**
- * PDF Ingestion Pipeline for RAG Training Showcase
+ * Deck ingestion for Reference AI: indexes the training HTML decks, one chunk per slide.
+ * Unchanged decks are skipped (content hash), changed decks are replaced in one transaction,
+ * documents no longer listed in DECK_FILES are pruned.
  *
- * Reads PDFs from /data directory, extracts text, chunks it,
- * generates embeddings, and stores everything in PostgreSQL.
- *
- * Usage: bun scripts/ingest.ts
+ * Usage: bun scripts/ingest.ts [--soft]
+ *   --soft  (used by `predev`): when the decks folder, oMLX or the DB is unavailable, warn and exit 0
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Pool } from "pg";
+import { DECK_FILES, deckChunks, decksDir } from "../src/lib/decks";
+import { logger } from "@/lib/core/utils/logger";
 import { embedDocument } from "../src/lib/embeddings";
 
-// --- Configuration ---
-const CHUNK_SIZE = 2000; // ~500 tokens
-const CHUNK_OVERLAP = 200; // ~50 tokens
+const soft = process.argv.includes("--soft");
 const EMBEDDING_BATCH_SIZE = 20;
-const DATA_DIR = join(process.cwd(), "data");
 
-// --- Direct pool for script (not using the app's pool) ---
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: false,
-  max: 3,
-});
+// --- Direct pool for the script (not the app's pool) ---
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false, max: 3 });
 
-// --- Text chunking ---
-function chunkText(text: string): string[] {
-  const chunks: string[] = [];
-  let start = 0;
-
-  while (start < text.length) {
-    const end = Math.min(start + CHUNK_SIZE, text.length);
-    const chunk = text.slice(start, end).trim();
-    if (chunk.length > 0) {
-      chunks.push(chunk);
-    }
-    start += CHUNK_SIZE - CHUNK_OVERLAP;
-  }
-
-  return chunks;
-}
-
-// --- Batch embedding with rate limiting ---
-async function embedBatch(texts: string[]): Promise<number[][]> {
-  const embeddings: number[][] = [];
-
+async function embedAll(texts: string[]): Promise<number[][]> {
+  const out: number[][] = [];
   for (let i = 0; i < texts.length; i += EMBEDDING_BATCH_SIZE) {
-    const batch = texts.slice(i, i + EMBEDDING_BATCH_SIZE);
-    const batchEmbeddings = await Promise.all(
-      batch.map((text) => embedDocument(text)),
-    );
-    embeddings.push(...batchEmbeddings);
-
-    if (i + EMBEDDING_BATCH_SIZE < texts.length) {
-      console.log(`  Embedded ${embeddings.length}/${texts.length} chunks...`);
-      await new Promise((r) => setTimeout(r, 500)); // rate limit pause
-    }
+    out.push(...(await Promise.all(texts.slice(i, i + EMBEDDING_BATCH_SIZE).map((t) => embedDocument(t)))));
   }
-
-  return embeddings;
+  return out;
 }
 
-// --- Main ingestion pipeline ---
 async function ingest() {
-  console.log("=== RAG Ingestion Pipeline ===\n");
+  logger.info(`=== Deck ingestion (${decksDir}) ===`);
+  if (!existsSync(decksDir)) throw new Error(`DECKS_DIR not found: ${decksDir}`);
 
-  // 1. Find PDFs
-  const files = readdirSync(DATA_DIR).filter((f) => f.toLowerCase().endsWith(".pdf"));
-  console.log(`Found ${files.length} PDF files in ${DATA_DIR}\n`);
+  const tally = { new: 0, updated: 0, unchanged: 0, pruned: 0, chunks: 0 };
 
-  if (files.length === 0) {
-    console.log("No PDF files found. Copy PDFs to the data/ directory and try again.");
-    process.exit(1);
-  }
-
-  let totalChunks = 0;
-  let totalEmbeddings = 0;
-
-  // Dynamic import for pdf-parse (CommonJS module)
-  const pdfParse = (await import("pdf-parse")).default;
-
-  for (const filename of files) {
-    console.log(`Processing: ${filename}`);
-
-    // 2. Extract text from PDF
-    const pdfBuffer = readFileSync(join(DATA_DIR, filename));
-    const pdf = await pdfParse(pdfBuffer);
-    const text = pdf.text;
-    console.log(`  Extracted ${text.length} characters`);
-
-    // 3. Insert document metadata
-    const docResult = await pool.query(
-      "INSERT INTO documents (filename, title) VALUES ($1, $2) RETURNING id",
-      [filename, filename.replace(/\.pdf$/i, "")],
-    );
-    const documentId = docResult.rows[0].id;
-
-    // 4. Chunk text
-    const chunks = chunkText(text);
-    console.log(`  Split into ${chunks.length} chunks`);
-
-    // 5. Generate embeddings
-    console.log(`  Generating embeddings...`);
-    const embeddings = await embedBatch(chunks);
-
-    // 6. Insert chunks with embeddings
-    for (let i = 0; i < chunks.length; i++) {
-      const vectorStr = `[${embeddings[i].join(",")}]`;
-      await pool.query(
-        `INSERT INTO chunks (document_id, content, chunk_index, embedding, metadata)
-         VALUES ($1, $2, $3, $4::vector, $5)`,
-        [documentId, chunks[i], i, vectorStr, JSON.stringify({ filename })],
-      );
+  for (const filename of DECK_FILES) {
+    const path = join(decksDir, filename);
+    if (!existsSync(path)) {
+      logger.warn(`  ! ${filename}: missing, keeping its indexed version`);
+      continue;
+    }
+    const { deckTitle, chunks } = deckChunks(filename, readFileSync(path, "utf8"));
+    if (chunks.length === 0) {
+      logger.warn(`  ! ${filename}: 0 slides extracted (markup changed?), keeping its indexed version`);
+      continue;
+    }
+    const hash = createHash("sha256").update(chunks.map((c) => c.content).join("\n\n")).digest("hex");
+    const { rows } = await pool.query("SELECT content_hash FROM documents WHERE filename = $1", [filename]);
+    if (rows[0]?.content_hash === hash) {
+      tally.unchanged++;
+      logger.log(`  = ${filename}: unchanged`);
+      continue;
     }
 
-    totalChunks += chunks.length;
-    totalEmbeddings += embeddings.length;
-    console.log(`  Done: ${chunks.length} chunks stored\n`);
+    // Embed before the transaction opens: a failure leaves the previous version in place.
+    const embeddings = await embedAll(chunks.map((c) => c.content));
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM documents WHERE filename = $1", [filename]); // chunks cascade
+      const doc = await client.query(
+        "INSERT INTO documents (filename, title, source, content_hash) VALUES ($1, $2, 'deck', $3) RETURNING id",
+        [filename, deckTitle, hash],
+      );
+      for (let i = 0; i < chunks.length; i++) {
+        await client.query(
+          `INSERT INTO chunks (document_id, content, chunk_index, embedding, metadata)
+           VALUES ($1, $2, $3, $4::vector, $5)`,
+          [doc.rows[0].id, chunks[i].content, i, `[${embeddings[i].join(",")}]`, JSON.stringify(chunks[i].metadata)],
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+    if (rows.length) tally.updated++;
+    else tally.new++;
+    tally.chunks += chunks.length;
+    logger.log(`  ${rows.length ? "~" : "+"} ${filename}: ${chunks.length} slides indexed`);
   }
 
-  console.log("=== Ingestion Complete ===");
-  console.log(`Documents: ${files.length}`);
-  console.log(`Chunks: ${totalChunks}`);
-  console.log(`Embeddings: ${totalEmbeddings}`);
+  const pruned = await pool.query("DELETE FROM documents WHERE NOT (filename = ANY($1)) RETURNING filename", [
+    DECK_FILES,
+  ]);
+  tally.pruned = pruned.rowCount ?? 0;
+  pruned.rows.forEach((r) => logger.log(`  - ${r.filename}: pruned`));
 
-  await pool.end();
+  logger.log(
+    `new ${tally.new} · updated ${tally.updated} · unchanged ${tally.unchanged} · pruned ${tally.pruned} · chunks ${tally.chunks}`,
+  );
 }
 
-ingest().catch((err) => {
-  console.error("Ingestion failed:", err);
-  process.exit(1);
-});
+ingest()
+  .catch((err) => {
+    const message = err instanceof Error ? err.message : String(err);
+    if (soft) {
+      logger.warn(`[ingest] skipped: ${message}. Starting anyway; run \`bun ingest\` once oMLX, the DB and the decks are available.`);
+    } else {
+      logger.error("Ingestion failed", err);
+      process.exitCode = 1;
+    }
+  })
+  .finally(() => pool.end());

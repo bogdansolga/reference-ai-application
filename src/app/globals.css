@@ -1,31 +1,56 @@
 @import "tailwindcss";
 
+@theme {
+  --font-serif: var(--font-instrument), Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
 :root {
+  /* the training decks' palette (decks/html/assets/theme-elegant.css) */
+  --ink: #14263d;
+  --blue: #0e4c92;
+  --line: #e4eaf1;
+  --sky: #e8f1fb;
+  --sage: #5fb49c;
+  --sage-deep: #2f7d67;
+  --sage-panel: #eef7f3;
+  --sage-border: #cfe7de;
+  --sage-pill: #ddf0e8;
+  --ochre: #b4813a;
+
   --background: #ffffff;
-  --foreground: #1a1a1a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --input: #f9fafb;
-  --primary: #4f46e5;
+  --foreground: var(--ink);
+  --muted: #5d6f84;
+  --border: var(--line);
+  --input: #f6f9fd;
+  --primary: var(--blue);
   --primary-foreground: #ffffff;
-  --card: #f3f4f6;
-  --accent: rgba(79, 70, 229, 0.08);
-  --accent-border: rgba(79, 70, 229, 0.2);
-  --user-bubble: #4f46e5;
+  --card: #f6f9fd;
+  --accent: var(--sky);
+  --accent-border: #c9dcf2;
+  --user-bubble: var(--blue);
   --user-text: #ffffff;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   font-size: 16px;
 }
 
+/* deck typography: serif titles with an italic blue accent word, small-caps kickers */
+.serif-title { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; line-height: 1.02; }
+.serif-title em { color: var(--blue); font-style: italic; }
+.kicker { font: 600 12px/1 var(--font-sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--sage-deep); }
+.deck-card { background: linear-gradient(180deg, #fff, var(--card)); border: 1px solid var(--line); border-radius: 14px; }
+.deck-card.hi { background: var(--sky); border-color: var(--accent-border); }
+
 /* Markdown prose styling */
-.prose h1 { font-size: 1.5em; font-weight: 700; margin: 1em 0 0.5em; }
-.prose h2 { font-size: 1.3em; font-weight: 700; margin: 1em 0 0.5em; }
-.prose h3 { font-size: 1.1em; font-weight: 600; margin: 0.8em 0 0.4em; }
+.prose h1, .prose h2, .prose h3 { font-family: var(--font-serif); font-weight: 400; }
+.prose h1 { font-size: 1.5em; margin: 1em 0 0.5em; }
+.prose h2 { font-size: 1.3em; margin: 1em 0 0.5em; }
+.prose h3 { font-size: 1.1em; margin: 0.8em 0 0.4em; }
 .prose p { margin: 0.6em 0; line-height: 1.7; }
 .prose ul, .prose ol { margin: 0.5em 0; padding-left: 1.5em; }
 .prose li { margin: 0.3em 0; line-height: 1.6; }

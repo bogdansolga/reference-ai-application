@@ -1,8 +1,9 @@
 {
-  "name": "reference-rag-application",
+  "name": "reference-ai-application",
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "bun scripts/ingest.ts --soft",
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
@@ -15,23 +16,25 @@
     "bootstrap": "bun db:setup && bun db:embeddings-setup && bun ingest"
   },
   "dependencies": {
-    "next": "^16.2.1",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "ai": "^6.0.138",
-    "@ai-sdk/openai": "^3.0.48",
-    "@ai-sdk/react": "^3.0.140",
-    "drizzle-orm": "^0.45.1",
-    "pg": "^8.20.0",
-    "pdf-parse": "^2.4.5",
-    "react-markdown": "^10.1.0"
+    "@ai-sdk/openai": "^4.0.114",
+    "@ai-sdk/react": "^4.0.173",
+    "ai": "^7.0.169",
+    "drizzle-orm": "^0.45.4",
+    "next": "^16.4.6",
+    "node-html-parser": "^9.0.7",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "three": "0.160.0"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10",
-    "typescript": "^6.0.2",
-    "@tailwindcss/postcss": "^4.2.2",
-    "tailwindcss": "^4.2.2"
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/three": "0.160.0",
+    "drizzle-kit": "^0.31.11",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2"
   }
 }

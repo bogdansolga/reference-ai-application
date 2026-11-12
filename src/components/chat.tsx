@@ -1,14 +1,20 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { useRef, useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { useRef, useEffect, useState } from "react";
 import Markdown from "react-markdown";
+import { SceneHero } from "@/components/scene-hero";
+import { SiteHeader } from "@/components/site-header";
 
 interface Source {
-  filename: string;
-  chunkIndex: number;
+  label: string; // "10-rag-introduction · slide 5: Four parts of a RAG system"
   similarity: number;
+}
+
+interface SearchResult {
+  filename: string;
+  similarity: number;
+  metadata: { slide?: number; slideTitle?: string } | null;
 }
 
 /** Extract text content from a UIMessage's parts array */
@@ -35,13 +41,12 @@ export function Chat() {
           `/api/search?q=${encodeURIComponent(query)}`,
         );
         const data = await res.json();
-        const sources: Source[] = data.results.map(
-          (r: { filename: string; chunkIndex: number; similarity: number }) => ({
-            filename: r.filename,
-            chunkIndex: r.chunkIndex,
-            similarity: parseFloat(r.similarity.toFixed(2)),
-          }),
-        );
+        const sources: Source[] = (data.results as SearchResult[]).map((r) => ({
+          label: r.metadata?.slide
+            ? `${r.filename.replace(/\.html$/, "")} · slide ${r.metadata.slide}: ${r.metadata.slideTitle}`
+            : r.filename,
+          similarity: parseFloat(r.similarity.toFixed(2)),
+        }));
         setSourcesMap((prev) => ({ ...prev, [message.id]: sources }));
       } catch {
         // silently ignore source fetch errors
@@ -51,7 +56,7 @@ export function Chat() {
 
   const isLoading = status !== "ready";
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (inputValue.trim() && !isLoading) {
       lastQueryRef.current = inputValue;
@@ -66,34 +71,20 @@ export function Chat() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Header */}
-      <header className="px-6 py-4 border-b border-[var(--border)] flex items-center gap-3">
-        <h1 className="text-lg font-semibold">RAG Training Showcase</h1>
-        <span className="text-xs text-[var(--muted)] bg-[var(--input)] px-2 py-1 rounded">
-          AI Introduction &amp; Integration
-        </span>
-        <div className="ml-auto">
-          <Link
-            href="/overview"
-            className="text-sm text-[var(--primary)] hover:underline"
-          >
-            RAG Overview
-          </Link>
-        </div>
-      </header>
+      <SiteHeader />
+      <SceneHero
+        scene="rag"
+        kicker="RAG · Grounding"
+        title={<>Ask the <em>decks</em></>}
+        lede="Every answer is retrieved from the AI training decks, then generated with those slides as context."
+      />
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         {messages.length === 0 && (
-          <div className="max-w-6xl mx-auto text-center pt-20 pb-8">
-            <div className="text-4xl mb-3">🔍</div>
-            <p className="text-[var(--muted)] text-base mb-1">
-              Ask anything about AI, ML, RAG, or Vector Databases
-            </p>
-            <p className="text-[var(--muted)] text-sm">
-              Answers are grounded in the training course materials
-            </p>
-          </div>
+          <p className="max-w-6xl mx-auto text-center pt-10 text-[var(--muted)]">
+            Try: <em>What are the four parts of a RAG system?</em>
+          </p>
         )}
 
         <div className="max-w-6xl mx-auto space-y-4">
@@ -122,7 +113,7 @@ export function Chat() {
                               key={idx}
                               className="text-[11px] text-[var(--primary)] bg-[var(--accent)] px-2 py-0.5 rounded border border-[var(--accent-border)]"
                             >
-                              {source.filename} — chunk {source.chunkIndex}{" "}
+                              {source.label}{" "}
                               <span className="text-[var(--muted)]">
                                 ({source.similarity})
                               </span>
@@ -143,7 +134,7 @@ export function Chat() {
           )}
 
           {error && (
-            <div className="bg-red-900/20 border border-red-800 px-4 py-3 rounded-xl text-sm text-red-400">
+            <div className="bg-red-50 border border-red-200 px-4 py-3 rounded-xl text-sm text-red-700">
               {error.message}
             </div>
           )}
@@ -158,7 +149,7 @@ export function Chat() {
           <input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask a question about AI, ML, or RAG..."
+            placeholder="Ask about context engineering, agents, vector databases or RAG…"
             className="flex-1 bg-[var(--input)] border border-[var(--border)] rounded-lg px-4 py-3 text-base text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--primary)] transition-colors"
             disabled={isLoading}
           />
