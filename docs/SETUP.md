@@ -8,9 +8,11 @@ Step-by-step guide for setting up and running the Reference AI application.
 - **PostgreSQL** (v15+) with the [pgvector](https://github.com/pgvector/pgvector) extension installed
 - **oMLX** (Apple Silicon) — local OpenAI-compatible server for chat + embeddings, see below
 
-## 1. Install Dependencies
+## 1. Clone and Install Dependencies
 
 ```bash
+git clone git@github.com:bogdansolga/reference-ai-application.git
+cd reference-ai-application
 bun install
 ```
 

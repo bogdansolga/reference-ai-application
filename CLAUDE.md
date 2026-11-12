@@ -6,6 +6,8 @@ This file provides context for Claude Code when working on this project.
 
 **Reference AI**: a training showcase of two AI patterns, RAG and AI Agents, running fully locally on oMLX. The RAG knowledge base is the AI training HTML decks. Educational app — clarity over production features.
 
+Repository: [bogdansolga/reference-ai-application](https://github.com/bogdansolga/reference-ai-application) (renamed from `reference-rag-application`; GitHub redirects the old URL).
+
 ## Tech Stack
 
 - **Next.js 16** (App Router, Turbopack), **React 19**, **TypeScript**

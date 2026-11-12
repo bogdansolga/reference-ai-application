@@ -23,6 +23,8 @@ A training showcase of two AI patterns, side by side and fully local: **RAG** (g
 ## Quick Start
 
 ```bash
+git clone git@github.com:bogdansolga/reference-ai-application.git
+cd reference-ai-application
 bun install
 cp .env.local.example .env.local   # add your EMBEDDING_API_KEY (oMLX); DATABASE_URL is set by bun db:setup
 bun bootstrap                       # set up DB, pgvector, and index the decks (DECKS_DIR)
