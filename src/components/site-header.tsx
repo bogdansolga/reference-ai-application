@@ -7,6 +7,7 @@ const NAV = [
   { href: "/", label: "Home" },
   { href: "/rag", label: "RAG" },
   { href: "/agent", label: "Agent" },
+  { href: "/architecture", label: "Architecture" },
 ];
 
 /** The shared header: the brand and the two sections (RAG, Agent), the current one highlighted. */

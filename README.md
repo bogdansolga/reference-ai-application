@@ -8,6 +8,7 @@ A training showcase of two AI patterns, side by side and fully local: **RAG** (g
 2. **Answers questions** — embeds user queries, searches for similar chunks via cosine similarity, streams LLM responses grounded in retrieved context
 3. **Shows sources** — the deck and slide behind each answer, with similarity scores
 4. **Runs a tool-using agent** — a live trace of every model call, prompt, tool call and the context window
+5. **Places both in the big picture** — an architecture page (2D and 3D diagrams) on cloud vs local LLMs, deterministic vs probabilistic calls, and an FAQ of common misconceptions
 
 ## Tech Stack
 
@@ -44,10 +45,11 @@ User Question
   → Display with source citations
 ```
 
-The app has a homepage and two sections:
+The app has a homepage, two sections and an architecture page:
 - **/** — Homepage: RAG and Agents, how they complement each other, levels of autonomy
 - **/rag/chat** and **/rag/overview** — RAG: chat over the training decks, and how the pipeline is built
 - **/agent/demo** and **/agent/overview** — the tool-using agent: live trace of model calls, prompts, tool calls and context usage, and how it works
+- **/architecture** — the big picture: cloud vs local LLMs, deterministic vs probabilistic calls, where RAG and agents sit (diagram enlarges on click; a 3D view at /architecture/3d), plus an FAQ of common misconceptions
 
 ## Documentation
 
@@ -68,6 +70,7 @@ src/
 │   ├── page.tsx              # Homepage
 │   ├── rag/                  # layout (hero + tabs), chat/, overview/
 │   ├── agent/                # layout (hero + tabs), demo/, overview/
+│   ├── architecture/         # AI in software architecture: diagram, zones, FAQ (3d/: the 3D view; a 2D | 3D toggle above the diagram)
 │   └── api/
 │       ├── agent/route.ts    # Agent loop, streamed as SSE
 │       ├── chat/route.ts     # RAG chat endpoint
@@ -86,9 +89,12 @@ src/
 └── components/
     ├── agent-runs.tsx        # Agent demo UI
     ├── chat.tsx              # Chat component
+    ├── architecture-page.tsx # Architecture page content, shared by the flat and 3D views
+    ├── architecture-diagram.tsx # Architecture SVG + enlarge-on-click dialog
+    ├── architecture-3d.tsx   # Architecture as a light 3D scene (drag to turn, click to enlarge)
     ├── site-header.tsx       # Shared header
     ├── scene-hero.tsx        # Animated hero band
-    └── scenes/               # three.js scenes ported from the decks' kit
+    └── scenes/               # three.js scenes: the decks' kit, RAG, agent loop, 3D architecture
 ├── prompts/                  # Every LLM prompt, as Markdown
 └── instrumentation.ts        # Loads the prompts at server start
 

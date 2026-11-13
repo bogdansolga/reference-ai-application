@@ -4,7 +4,7 @@ This file provides context for Claude Code when working on this project.
 
 ## What This Is
 
-**Reference AI**: a training showcase of two AI patterns, RAG and AI Agents, running fully locally on oMLX. The RAG knowledge base is the AI training HTML decks. Educational app — clarity over production features.
+**Reference AI**: a training showcase of two AI patterns, RAG and AI Agents, running fully locally on oMLX, plus an architecture page that places both in a zoomed-out view. The RAG knowledge base is the AI training HTML decks. Educational app — clarity over production features.
 
 Repository: [bogdansolga/reference-ai-application](https://github.com/bogdansolga/reference-ai-application) (renamed from `reference-rag-application`; GitHub redirects the old URL).
 
@@ -28,6 +28,10 @@ src/app/rag/overview/page.tsx → RAG "How it works": system diagram, phases, co
 src/app/agent/layout.tsx      → Agent section: header + hero + tabs (Demo | How it works)
 src/app/agent/demo/page.tsx   → agent demo (renders <AgentRuns />)
 src/app/agent/overview/page.tsx → agent "How it works": the loop, context window, prompt + tools, SDK version
+src/app/architecture/page.tsx → AI in software architecture, flat SVG diagram (from docs/AI in Software Architecture.pdf)
+src/app/architecture/3d/page.tsx → the same page with a light 3D diagram (2D | 3D toggle, centred above the diagram)
+src/components/architecture-page.tsx → the shared content of both: hero + view switch, diagram slot, intents,
+                                numbered zones, "this app is an App 1", FAQ of misconceptions (<details>)
 next.config.ts                → redirects: /rag → /rag/chat, /agent → /agent/demo, /chat and /overview (old) → /rag/*
 src/app/layout.tsx            → Root layout (fonts, metadata)
 src/instrumentation.ts        → server start: pre-loads the prompts
@@ -50,11 +54,16 @@ src/lib/agent.ts              → runAgent(): hand-written tool loop, session hi
 src/lib/agent-tools.ts        → tool registry (name, kind read|write, JSON schema, execute)
 src/components/chat.tsx       → Client component: useChat, streaming, sources
 src/components/agent-runs.tsx → Client component: sessions, collapsible turns, live trace, context charts
-src/components/site-header.tsx → shared header / nav (Home · RAG · Agent)
+src/components/site-header.tsx → shared header / nav (Home · RAG · Agent · Architecture)
+src/components/architecture-diagram.tsx → hand-drawn SVG of the PDF diagram (blue = deterministic, red = probabilistic),
+                                drawn inline and again, enlarged, in a native <dialog>
+src/components/architecture-3d.tsx → the 3D diagram: OrbitControls (drag; zoom only enlarged), HTML labels projected
+                                from 3D anchors every frame, click-to-enlarge <dialog>; scene in scenes/architecture-scene.ts
 src/components/section-tabs.tsx → the tabs under a section's hero
 src/components/section-head.tsx → deck-style section heading (kicker, serif title, lede)
 src/components/scene-hero.tsx → animated deck-style hero band (client-only three.js, disposed on unmount)
-src/components/scenes/*       → kit.ts (ported deck scene kit), rag-scene.ts, agent-loop-scene.ts
+src/components/scenes/*       → kit.ts (ported deck scene kit), rag-scene.ts, agent-loop-scene.ts,
+                                architecture-scene.ts (the 3D architecture: plates, blocks, flows, label anchors)
 scripts/ingest.ts             → deck ingestion: hash-based skip / replace / prune (--soft for predev)
 scripts/setup-db.sh           → DB creation + Drizzle migrations
 scripts/add-pgvector.sh       → pgvector extension + HNSW index
@@ -113,6 +122,13 @@ const userText =
 - Never hard-code a prompt: add a Markdown file to `src/prompts/` and a key in `prompts` (`src/lib/prompts.ts`). Prompts load once per server process; restart `bun dev` after editing one.
 - The decks are indexed, not shown: a slide is a chunk with metadata `{filename, deckTitle, slide, slideTitle}`; `citation()` in `retrieval.ts` formats it. Change the deck list in `DECK_FILES`.
 - Log with `logger` from `@/lib/core/utils/logger` (copied from the sibling finances-manager), never `console.*`.
+
+### Architecture page (2D and 3D)
+
+- Two views of one page: `/architecture` (SVG) and `/architecture/3d` (three.js). All text (intents, numbered zones, FAQ) lives once in `architecture-page.tsx`; the routes only pass a different `diagram`.
+- The two diagrams are drawn separately: a component or flow added to one must be added to the other (`architecture-diagram.tsx` and `scenes/architecture-scene.ts`). Keep the zone numbers 1–5 in both, matching the descriptions.
+- Colours carry meaning: blue `#3a78c9` = deterministic (code), red `#d0453b` = probabilistic (a model decides), magenta = no direct access.
+- 3D labels are HTML, not 3D text: add a `Label` anchor in the scene; `below: true` hangs it under the anchor (front row).
 
 ### Architecture Rules
 
